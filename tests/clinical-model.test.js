@@ -230,3 +230,35 @@ test('future sampling time and extreme hyperglycemia add explicit warnings', () 
     assert.ok(result.warnings.some((message) => message.includes('晚於目前時間')));
     assert.ok(result.warnings.some((message) => message.includes('>400')));
 });
+
+test('malformed optional clinical values are blocked rather than treated as zero', () => {
+    for (const patch of [{ glucoseMgDl: 'abc' }, { egfr: -1 }, { dryWeightKg: 0 }]) {
+        assert.doesNotThrow(() => model.predictPlasmaSodium(completeInput(patch)));
+        assert.equal(model.predictPlasmaSodium(completeInput(patch)).predictedNa, null);
+    }
+});
+
+test('unusual values require an explicit confirmation before prediction', () => {
+    const unconfirmed = model.predictPlasmaSodium(completeInput({ baselineNa: 195 }));
+    const confirmed = model.predictPlasmaSodium(completeInput({ baselineNa: 195, confirmUnusualValues: true }));
+
+    assert.equal(unconfirmed.predictedNa, null);
+    assert.ok(unconfirmed.blockers.some((message) => message.includes('超出常見範圍')));
+    assert.notEqual(confirmed.predictedNa, null);
+    assert.ok(confirmed.warnings.some((message) => message.includes('已人工確認')));
+});
+
+test('inconsistent water assumptions are blocked or warned explicitly', () => {
+    const reversedBounds = model.predictPlasmaSodium(completeInput({
+        insensibleLossLowMl: 1200,
+        insensibleLossMl: 800,
+        insensibleLossHighMl: 500
+    }));
+    const excessFormulaWater = model.predictPlasmaSodium(completeInput({
+        formulaVolumeMl: 800,
+        formulaFreeWaterMl: 1000
+    }));
+
+    assert.equal(reversedBounds.predictedNa, null);
+    assert.ok(excessFormulaWater.warnings.some((message) => message.includes('大於配方總體積')));
+});

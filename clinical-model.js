@@ -99,7 +99,7 @@
         }
         const positiveFields = [
             ['age', '年齡'], ['heightCm', '身高'], ['weightKg', '目前體重'], ['baselineNa', '最近血鈉'],
-            ['urineVolumeMl', '預估尿量']
+            ['urineVolumeMl', '預估尿量'], ['dryWeightKg', '乾體重'], ['serumPotassium', '血鉀']
         ];
         const nonnegativeFields = [
             ['formulaFreeWaterMl', '配方自由水量'], ['urineSodium', '尿鈉'], ['urinePotassium', '尿鉀'],
@@ -110,7 +110,9 @@
             ['otherSodiumMeq', '其他鈉'], ['otherPotassiumMeq', '其他鉀'],
             ['otherOutputMl', '其他液體流失'], ['otherNaLossMeq', '其他鈉流失'],
             ['otherKLossMeq', '其他鉀流失'], ['insensibleLossMl', '不可見水分流失'],
-            ['insensibleLossLowMl', '不可見水分流失下限'], ['insensibleLossHighMl', '不可見水分流失上限']
+            ['insensibleLossLowMl', '不可見水分流失下限'], ['insensibleLossHighMl', '不可見水分流失上限'],
+            ['glucoseMgDl', '血糖'], ['creatinine', 'Creatinine'], ['egfr', 'eGFR'],
+            ['formulaVolumeMl', '管灌配方總體積']
         ];
         for (const [field, label] of positiveFields) {
             if (!isMissing(input[field]) && (!Number.isFinite(Number(input[field])) || Number(input[field]) <= 0)) {
@@ -136,6 +138,31 @@
         if (!isMissing(input.baselineSampleLocal) && !parseLocalDateTime(input.baselineSampleLocal)) {
             blockers.push('最近血鈉採血時間格式不正確');
         }
+        if (![input.insensibleLossLowMl, input.insensibleLossMl, input.insensibleLossHighMl].some(isMissing)) {
+            const low = Number(input.insensibleLossLowMl);
+            const center = Number(input.insensibleLossMl);
+            const high = Number(input.insensibleLossHighMl);
+            if (Number.isFinite(low) && Number.isFinite(center) && Number.isFinite(high)
+                && !(low <= center && center <= high)) {
+                blockers.push('不可見水分流失需符合下限 ≤ 中心值 ≤ 上限');
+            }
+        }
+
+        const commonRanges = [
+            ['age', '年齡', 18, 120], ['heightCm', '身高', 100, 230], ['weightKg', '目前體重', 20, 300],
+            ['baselineNa', '最近血鈉', 90, 190], ['urineVolumeMl', '預估尿量', 1, 10000],
+            ['urineSodium', '尿鈉', 0, 300], ['urinePotassium', '尿鉀', 0, 300]
+        ];
+        const unusualLabels = commonRanges
+            .filter(([field, , min, max]) => !isMissing(input[field]) && Number.isFinite(Number(input[field]))
+                && (Number(input[field]) < min || Number(input[field]) > max))
+            .map(([, label]) => label);
+        if (unusualLabels.length > 0 && !input.confirmUnusualValues) {
+            blockers.push(`${unusualLabels.join('、')}超出常見範圍，請確認輸入值後勾選人工確認`);
+        }
+        if (unusualLabels.length > 0 && input.confirmUnusualValues) {
+            warnings.push(`${unusualLabels.join('、')}超出常見範圍，已人工確認`);
+        }
 
         if (blockers.length === 0) {
             try {
@@ -155,8 +182,9 @@
         if (input.recentDiureticChange) warnings.push('近期利尿劑調整可能改變尿量與尿電解質');
         if (input.recentDesmopressinChange) warnings.push('近期 desmopressin 調整可能快速改變自由水排出');
         if (input.volumeStatus && input.volumeStatus !== 'normal') warnings.push('體液狀態可能使 Watson TBW 估算偏離實際值');
-        if (optionalNumber(input.glucoseMgDl) > 200) warnings.push('高血糖會影響實測血鈉與 24 小時預測');
-        if (optionalNumber(input.glucoseMgDl) > 400) warnings.push('血糖 >400 mg/dL 時線性校正血鈉的不確定性更高');
+        const glucose = Number(input.glucoseMgDl);
+        if (!isMissing(input.glucoseMgDl) && Number.isFinite(glucose) && glucose > 200) warnings.push('高血糖會影響實測血鈉與 24 小時預測');
+        if (!isMissing(input.glucoseMgDl) && Number.isFinite(glucose) && glucose > 400) warnings.push('血糖 >400 mg/dL 時線性校正血鈉的不確定性更高');
         if (input.glucoseExpectedToChange) warnings.push('預期血糖明顯變化，校正血鈉僅供參考');
         if (optionalNumber(input.otherOutputMl) > 0 && input.otherLossElectrolytesKnown === false) {
             warnings.push('已計入額外液體流失，但未計入未知的腸胃道／引流鈉鉀流失');
@@ -168,6 +196,11 @@
         if (!isMissing(input.dryWeightKg) && !isMissing(input.weightKg)) {
             const difference = Math.abs(Number(input.weightKg) - Number(input.dryWeightKg));
             if (difference / Number(input.weightKg) >= 0.05) warnings.push('目前體重與乾體重差距較大，TBW 估算可能受體液偏移影響');
+        }
+        if (!isMissing(input.formulaVolumeMl) && !isMissing(input.formulaFreeWaterMl)
+            && Number.isFinite(Number(input.formulaVolumeMl)) && Number.isFinite(Number(input.formulaFreeWaterMl))
+            && Number(input.formulaVolumeMl) > 0 && Number(input.formulaFreeWaterMl) > Number(input.formulaVolumeMl)) {
+            warnings.push('配方自由水量大於配方總體積，請再次核對產品標示');
         }
 
         return { blockers: [...new Set(blockers)], warnings };
