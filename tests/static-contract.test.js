@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
 const root = join(__dirname, '..');
@@ -44,4 +44,20 @@ test('clinical result announces live updates and the page avoids inline event ha
 
     assert.match(html, /id="result-section"[^>]*aria-live="polite"/);
     assert.doesNotMatch(html, /\son(?:input|change|click)=/i);
+});
+
+test('browser controller exists and every referenced element id is present', () => {
+    const appPath = join(root, 'app.js');
+    assert.ok(existsSync(appPath), 'missing app.js');
+
+    const app = readFileSync(appPath, 'utf8');
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+    const referencedIds = [...app.matchAll(/byId\(['"]([^'"]+)['"]\)/g)].map((match) => match[1]);
+
+    assert.ok(referencedIds.length > 20, 'expected the controller to reference the clinical workflow');
+    for (const id of referencedIds) {
+        assert.ok(html.includes(`id="${id}"`), `app.js references missing #${id}`);
+    }
+    assert.match(app, /addEventListener\(['"]input['"],\s*update\)/);
+    assert.match(app, /addEventListener\(['"]change['"],\s*update\)/);
 });
