@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管灌鈉量評估與調整工具</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background-color: #f4f7f6; 
+            padding: 20px; 
+            color: #333; 
+            margin: 0;
+        }
+        .container { 
+            max-width: 480px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+        }
+        h2 { 
+            text-align: center; 
+            color: #2c3e50; 
+            margin-top: 0;
+            font-size: 1.4rem;
+        }
+        .form-group { margin-bottom: 20px; }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            color: #555;
+            font-size: 0.95rem;
+        }
+        input[type="number"] { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 1rem;
+        }
+        input[type="range"] { 
+            width: 100%; 
+            margin-top: 10px;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .slider-value { 
+            font-weight: bold; 
+            color: #007bff; 
+            font-size: 1.2rem;
+        }
+        .result-card { 
+            background: #eef2f5; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin-top: 25px; 
+        }
+        .result-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 12px; 
+            font-size: 1rem; 
+            color: #444;
+        }
+        .total { 
+            font-size: 1.3rem; 
+            font-weight: 700; 
+            color: #d35400; 
+            border-top: 2px dashed #ccc; 
+            padding-top: 15px; 
+            margin-top: 5px;
+        }
+        .alert { 
+            padding: 12px; 
+            background-color: #fff3cd; 
+            color: #856404; 
+            border-radius: 8px; 
+            display: none; 
+            margin-top: 20px; 
+            font-weight: 600; 
+            text-align: center;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🩸 管灌鈉量調整計算機</h2>
+    
+    <div class="form-group">
+        <label for="calories">每日處方總熱量 (kcal)</label>
+        <input type="number" id="calories" value="1500" step="50" oninput="calculate()">
+    </div>
+
+    <div class="form-group">
+        <label for="formulaNa">配方鈉含量 (mg / 1000 kcal)</label>
+        <input type="number" id="formulaNa" value="800" step="10" oninput="calculate()">
+    </div>
+
+    <div class="form-group">
+        <div class="slider-header">
+            <label for="extraSalt">額外加鹽量 (克 / 日)</label>
+            <div class="slider-value"><span id="saltValue">2.0</span> g</div>
+        </div>
+        <input type="range" id="extraSalt" min="0" max="10" step="0.5" value="2" oninput="updateSlider(); calculate()">
+        <small style="color: #888;">(備註：1克食鹽 ≈ 400 毫克鈉)</small>
+    </div>
+
+    <div class="result-card">
+        <div class="result-item">
+            <span>配方提供鈉量：</span>
+            <span id="formulaNaResult">1200 mg</span>
+        </div>
+        <div class="result-item">
+            <span>食鹽提供鈉量：</span>
+            <span id="saltNaResult">800 mg</span>
+        </div>
+        <div class="result-item total">
+            <span>總攝取鈉量：</span>
+            <span id="totalNaMg">2000 mg</span>
+        </div>
+        <div class="result-item" style="color: #2980b9; font-weight: bold; margin-top: 5px;">
+            <span>電解質當量：</span>
+            <span id="totalNaMeq">87.0 mEq</span>
+        </div>
+    </div>
+
+    <div id="warningAlert" class="alert">
+        ⚠️ 總鈉量低於 1000 mg，請留意低血鈉風險，或確認是否有心腎限水限鈉醫囑。
+    </div>
+</div>
+
+<script>
+    function updateSlider() {
+        const salt = parseFloat(document.getElementById('extraSalt').value).toFixed(1);
+        document.getElementById('saltValue').innerText = salt;
+    }
+
+    function calculate() {
+        // 取得輸入值
+        const calories = parseFloat(document.getElementById('calories').value) || 0;
+        const formulaNa = parseFloat(document.getElementById('formulaNa').value) || 0;
+        const extraSalt = parseFloat(document.getElementById('extraSalt').value) || 0;
+
+        // 計算邏輯
+        const naFromFormula = (calories / 1000) * formulaNa;
+        const naFromSalt = extraSalt * 400; // 1g 鹽 = 400mg 鈉
+        const totalNaMg = naFromFormula + naFromSalt;
+        const totalNaMeq = totalNaMg / 23; // 鈉原子量 23
+
+        // 更新 UI
+        document.getElementById('formulaNaResult').innerText = Math.round(naFromFormula) + " mg";
+        document.getElementById('saltNaResult').innerText = Math.round(naFromSalt) + " mg";
+        document.getElementById('totalNaMg').innerText = Math.round(totalNaMg) + " mg";
+        document.getElementById('totalNaMeq').innerText = totalNaMeq.toFixed(1) + " mEq";
+
+        // 警示邏輯
+        const alertBox = document.getElementById('warningAlert');
+        if (totalNaMg < 1000) {
+            alertBox.style.display = "block";
+        } else {
+            alertBox.style.display = "none";
+        }
+    }
+
+    // 初始化計算
+    calculate();
+</script>
+
+</body>
+</html>
