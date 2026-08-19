@@ -3,177 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管灌鈉量評估與調整工具</title>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-            background-color: #f4f7f6; 
-            padding: 20px; 
-            color: #333; 
-            margin: 0;
-        }
-        .container { 
-            max-width: 480px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 25px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-        }
-        h2 { 
-            text-align: center; 
-            color: #2c3e50; 
-            margin-top: 0;
-            font-size: 1.4rem;
-        }
-        .form-group { margin-bottom: 20px; }
-        label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-weight: 600; 
-            color: #555;
-            font-size: 0.95rem;
-        }
-        input[type="number"] { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            box-sizing: border-box; 
-            font-size: 1rem;
-        }
-        input[type="range"] { 
-            width: 100%; 
-            margin-top: 10px;
-        }
-        .slider-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .slider-value { 
-            font-weight: bold; 
-            color: #007bff; 
-            font-size: 1.2rem;
-        }
-        .result-card { 
-            background: #eef2f5; 
-            padding: 20px; 
-            border-radius: 10px; 
-            margin-top: 25px; 
-        }
-        .result-item { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 12px; 
-            font-size: 1rem; 
-            color: #444;
-        }
-        .total { 
-            font-size: 1.3rem; 
-            font-weight: 700; 
-            color: #d35400; 
-            border-top: 2px dashed #ccc; 
-            padding-top: 15px; 
-            margin-top: 5px;
-        }
-        .alert { 
-            padding: 12px; 
-            background-color: #fff3cd; 
-            color: #856404; 
-            border-radius: 8px; 
-            display: none; 
-            margin-top: 20px; 
-            font-weight: 600; 
-            text-align: center;
-            font-size: 0.95rem;
-        }
-    </style>
+    <meta name="description" content="成人非透析住院病人的管灌鈉量與 24 小時血漿鈉情境預估工具。">
+    <title>管灌加鹽與 24 小時血漿鈉預估</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="clinical-model.js" defer></script>
+    <script src="app.js" defer></script>
 </head>
 <body>
+    <main class="app-shell">
+        <header class="app-header">
+            <div>
+                <h1>管灌加鹽與 24 小時血漿鈉預估</h1>
+                <p>成人非透析住院病人的鈉、鉀與水分平衡情境工具</p>
+            </div>
+            <button class="print-button" id="print-button" type="button">列印摘要</button>
+        </header>
 
-<div class="container">
-    <h2>🩸 管灌鈉量調整計算機</h2>
-    
-    <div class="form-group">
-        <label for="calories">每日處方總熱量 (kcal)</label>
-        <input type="number" id="calories" value="1500" step="50" oninput="calculate()">
-    </div>
+        <div class="scope-note" role="note">本工具只提供情境估算，不會推薦加鹽劑量；實際處置仍需依症狀、體液狀態與連續血鈉追蹤。</div>
 
-    <div class="form-group">
-        <label for="formulaNa">配方鈉含量 (mg / 1000 kcal)</label>
-        <input type="number" id="formulaNa" value="800" step="10" oninput="calculate()">
-    </div>
+        <div class="workspace">
+            <form id="sodium-form" class="clinical-form" novalidate>
+                <details id="patient-section" class="form-section" open>
+                    <summary><span class="section-number">1</span><span>病人與基準資料</span></summary>
+                    <fieldset>
+                        <legend class="visually-hidden">病人與基準資料</legend>
+                        <div class="field-grid">
+                            <div class="field"><label for="age">年齡 <span class="required">必填</span></label><div class="input-unit"><input id="age" type="number" inputmode="decimal" min="18" max="120" step="1"><span>歲</span></div></div>
+                            <div class="field"><label for="sex">計算用生理性別 <span class="required">必填</span></label><select id="sex"><option value="">請選擇</option><option value="male">男性 Watson 方程</option><option value="female">女性 Watson 方程</option></select><small>僅用於原始 Watson TBW 方程。</small></div>
+                            <div class="field"><label for="height-cm">身高 <span class="required">必填</span></label><div class="input-unit"><input id="height-cm" type="number" inputmode="decimal" min="50" max="250" step="0.1"><span>cm</span></div></div>
+                            <div class="field"><label for="weight-kg">目前體重 <span class="required">必填</span></label><div class="input-unit"><input id="weight-kg" type="number" inputmode="decimal" min="1" max="400" step="0.1"><span>kg</span></div></div>
+                            <div class="field"><label for="dry-weight-kg">乾體重／平常體重</label><div class="input-unit"><input id="dry-weight-kg" type="number" inputmode="decimal" min="1" max="400" step="0.1"><span>kg</span></div></div>
+                            <div class="field"><label for="volume-status">體液狀態</label><select id="volume-status"><option value="">未評估</option><option value="depleted">不足</option><option value="normal">近正常</option><option value="overloaded">過多</option><option value="uncertain">不確定</option></select></div>
+                            <div class="field"><label for="baseline-na">最近血鈉 <span class="required">必填</span></label><div class="input-unit"><input id="baseline-na" type="number" inputmode="decimal" min="80" max="200" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field"><label for="baseline-sample-local">採血日期時間 <span class="required">必填</span></label><input id="baseline-sample-local" type="datetime-local"></div>
+                            <div class="field"><label for="glucose-mg-dl">血糖</label><div class="input-unit"><input id="glucose-mg-dl" type="number" inputmode="decimal" min="0" step="1"><span>mg/dL</span></div></div>
+                            <div class="field"><label for="serum-potassium">血鉀</label><div class="input-unit"><input id="serum-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field"><label for="creatinine">Creatinine</label><div class="input-unit"><input id="creatinine" type="number" inputmode="decimal" min="0" step="0.01"><span>mg/dL</span></div></div>
+                            <div class="field"><label for="egfr">eGFR</label><div class="input-unit"><input id="egfr" type="number" inputmode="decimal" min="0" step="1"><span>mL/min/1.73 m²</span></div><small>只作風險提示，不用來推算排鈉。</small></div>
+                        </div>
 
-    <div class="form-group">
-        <div class="slider-header">
-            <label for="extraSalt">額外加鹽量 (克 / 日)</label>
-            <div class="slider-value"><span id="saltValue">2.0</span> g</div>
+                        <div class="flag-group" aria-labelledby="renal-flags-title"><h3 id="renal-flags-title">腎臟與輸出狀態</h3><label class="check"><input id="aki" type="checkbox">AKI</label><label class="check"><input id="oliguria" type="checkbox">少尿</label><label class="check"><input id="anuria" type="checkbox">無尿</label><label class="check"><input id="unstable-output" type="checkbox">尿量／輸出不穩</label><label class="check"><input id="recent-diuretic-change" type="checkbox">近期調整利尿劑</label><label class="check"><input id="recent-desmopressin-change" type="checkbox">近期調整 desmopressin</label></div>
+                        <div class="flag-group danger-group" aria-labelledby="exclusion-title"><h3 id="exclusion-title">不適用條件</h3><label class="check"><input id="dialysis" type="checkbox">血液透析</label><label class="check"><input id="peritoneal-dialysis" type="checkbox">腹膜透析</label><label class="check"><input id="crrt" type="checkbox">CRRT</label></div>
+                        <div class="flag-group" aria-labelledby="safety-flags-title"><h3 id="safety-flags-title">安全與 ODS 風險</h3><label class="check"><input id="hypokalemia" type="checkbox">低血鉀</label><label class="check"><input id="malnutrition" type="checkbox">營養不良</label><label class="check"><input id="alcohol-use" type="checkbox">酒精使用問題</label><label class="check"><input id="advanced-liver-disease" type="checkbox">晚期肝病</label><label class="check"><input id="neurologic-symptoms" type="checkbox">嚴重神經學症狀</label><label class="check"><input id="glucose-expected-to-change" type="checkbox">預期血糖明顯變化</label></div>
+                    </fieldset>
+                </details>
+
+                <details id="intake-section" class="form-section" open>
+                    <summary><span class="section-number">2</span><span>未來 24 小時輸入</span></summary>
+                    <fieldset>
+                        <legend class="visually-hidden">未來 24 小時輸入</legend>
+                        <div class="field-grid">
+                            <div class="field"><label for="calories">管灌總熱量</label><div class="input-unit"><input id="calories" type="number" inputmode="decimal" min="0" step="10"><span>kcal/day</span></div></div>
+                            <div class="field"><label for="formula-volume-ml">管灌配方總體積</label><div class="input-unit"><input id="formula-volume-ml" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
+                            <div class="field emphasized-field"><label for="formula-free-water">配方自由水 <span class="required">必填</span></label><div class="input-unit"><input id="formula-free-water" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div><small>請依產品標示填寫，不等同配方總體積。</small></div>
+                            <div class="field"><label for="formula-sodium">配方鈉</label><div class="input-unit"><input id="formula-sodium" type="number" inputmode="decimal" min="0" step="1"><span>mg/1000 kcal</span></div></div>
+                            <div class="field"><label for="formula-potassium">配方鉀</label><div class="input-unit"><input id="formula-potassium" type="number" inputmode="decimal" min="0" step="1"><span>mg/1000 kcal</span></div></div>
+                        </div>
+                        <div class="salt-control"><div class="salt-heading"><label for="extra-salt">額外食鹽量</label><output id="salt-value" for="extra-salt">0.0 g/day</output></div><input id="extra-salt" type="range" min="0" max="10" step="0.1" value="0"><div class="salt-scale"><span>0 g</span><span>5 g</span><span>10 g</span></div><small>底層採 NaCl 分子量換算；1 g NaCl 約含 393.4 mg sodium、17.1 mEq sodium。</small></div>
+                        <div class="field-grid">
+                            <div class="field"><label for="flush-water">沖管水</label><div class="input-unit"><input id="flush-water" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
+                            <div class="field"><label for="enteral-water">其他口服／腸內自由水</label><div class="input-unit"><input id="enteral-water" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
+                            <div class="field"><label for="iv-water">靜脈輸液與藥物帶入水量</label><div class="input-unit"><input id="iv-water" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
+                            <div class="field"><label for="iv-sodium">靜脈鈉</label><div class="input-unit"><input id="iv-sodium" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                            <div class="field"><label for="iv-potassium">靜脈鉀</label><div class="input-unit"><input id="iv-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                            <div class="field"><label for="other-sodium">其他鈉補充</label><div class="input-unit"><input id="other-sodium" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                            <div class="field"><label for="other-potassium">其他鉀補充</label><div class="input-unit"><input id="other-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                        </div>
+                    </fieldset>
+                </details>
+
+                <details id="output-section" class="form-section" open>
+                    <summary><span class="section-number">3</span><span>未來 24 小時輸出</span></summary>
+                    <fieldset>
+                        <legend class="visually-hidden">未來 24 小時輸出</legend>
+                        <div class="field-grid">
+                            <div class="field emphasized-field"><label for="urine-volume">預估尿量 <span class="required">必填</span></label><div class="input-unit"><input id="urine-volume" type="number" inputmode="decimal" min="1" step="10"><span>mL/24 h</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-sodium">尿鈉 <span class="required">必填</span></label><div class="input-unit"><input id="urine-sodium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-potassium">尿鉀 <span class="required">必填</span></label><div class="input-unit"><input id="urine-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field"><label for="other-output">嘔吐、腹瀉、造口或引流量</label><div class="input-unit"><input id="other-output" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
+                            <div class="field"><label for="other-na-loss">其他鈉流失</label><div class="input-unit"><input id="other-na-loss" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                            <div class="field"><label for="other-k-loss">其他鉀流失</label><div class="input-unit"><input id="other-k-loss" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
+                        </div>
+                        <label class="check standalone-check"><input id="other-loss-electrolytes-known" type="checkbox">額外液體流失的鈉、鉀已量化並填入</label>
+                        <h3 class="subsection-title">不可見水分流失</h3>
+                        <div class="field-grid three-up">
+                            <div class="field"><label for="insensible-loss-low">下限</label><div class="input-unit"><input id="insensible-loss-low" type="number" inputmode="decimal" min="0" step="50" value="500"><span>mL/day</span></div></div>
+                            <div class="field"><label for="insensible-loss">中心值</label><div class="input-unit"><input id="insensible-loss" type="number" inputmode="decimal" min="0" step="50" value="800"><span>mL/day</span></div></div>
+                            <div class="field"><label for="insensible-loss-high">上限</label><div class="input-unit"><input id="insensible-loss-high" type="number" inputmode="decimal" min="0" step="50" value="1200"><span>mL/day</span></div></div>
+                        </div>
+                        <small>發燒或呼吸急促時請依臨床情境調高；此範圍會直接影響預估範圍。</small>
+                    </fieldset>
+                </details>
+            </form>
+
+            <aside id="result-section" class="result-panel" aria-live="polite">
+                <div class="result-header"><div><span class="section-number">4</span><h2>24 小時血漿鈉情境預估</h2></div><span id="data-completeness" class="completeness low">資料完整度：低</span></div>
+                <section class="prediction-primary" aria-labelledby="prediction-title"><h3 id="prediction-title">調整後處方</h3><div class="prediction-value"><strong id="predicted-na">—</strong><span>mmol/L</span></div><div class="prediction-meta"><span>情境範圍 <strong id="predicted-range">—</strong></span><span>24 h 變化 <strong id="delta-na">—</strong></span></div><p id="corrected-na-reference" class="corrected-reference" hidden></p></section>
+                <div id="prediction-messages" class="message-list" aria-label="適用性與安全訊息"></div>
+                <section class="intake-summary" aria-labelledby="intake-summary-title"><h3 id="intake-summary-title">24 小時鈉攝取</h3><dl><div><dt>配方鈉</dt><dd id="formula-sodium-mg">0 mg</dd></div><div><dt>食鹽鈉</dt><dd><span id="salt-sodium-mg">0 mg</span> · <span id="salt-sodium-meq">0 mEq</span></dd></div><div class="total-row"><dt>總鈉攝取</dt><dd><span id="total-sodium-mg">0 mg</span> · <span id="total-sodium-meq">0 mEq</span></dd></div></dl></section>
+                <section class="balance-summary" aria-labelledby="balance-summary-title"><h3 id="balance-summary-title">模型平衡摘要</h3><dl><div><dt>估算起始 TBW</dt><dd id="tbw-result">—</dd></div><div><dt>淨鈉＋鉀平衡</dt><dd id="net-cation-result">—</dd></div><div><dt>淨水分平衡</dt><dd id="net-water-result">—</dd></div></dl></section>
+                <details class="assumption-details"><summary>公式、假設與限制</summary><ul id="assumption-list"><li>完成必要資料後顯示計算假設。</li></ul><p>Edelman 情境式：PNa₍₂₄₎ = 1.11 × [(起始等效陽離子池 + 淨 Na + K) ÷ TBW₍₂₄₎] − 25.6。</p><p>結果是敏感度情境，不是統計信賴區間，也未經前瞻性臨床驗證。</p></details>
+                <footer class="result-footer"><p>需以實際血鈉追蹤驗證；尿量與尿電解質變化可使預估顯著偏離。</p><time id="calculation-time"></time></footer>
+            </aside>
         </div>
-        <input type="range" id="extraSalt" min="0" max="10" step="0.5" value="2" oninput="updateSlider(); calculate()">
-        <small style="color: #888;">(備註：1克食鹽 ≈ 400 毫克鈉)</small>
-    </div>
-
-    <div class="result-card">
-        <div class="result-item">
-            <span>配方提供鈉量：</span>
-            <span id="formulaNaResult">1200 mg</span>
-        </div>
-        <div class="result-item">
-            <span>食鹽提供鈉量：</span>
-            <span id="saltNaResult">800 mg</span>
-        </div>
-        <div class="result-item total">
-            <span>總攝取鈉量：</span>
-            <span id="totalNaMg">2000 mg</span>
-        </div>
-        <div class="result-item" style="color: #2980b9; font-weight: bold; margin-top: 5px;">
-            <span>電解質當量：</span>
-            <span id="totalNaMeq">87.0 mEq</span>
-        </div>
-    </div>
-
-    <div id="warningAlert" class="alert">
-        ⚠️ 總鈉量低於 1000 mg，請留意低血鈉風險，或確認是否有心腎限水限鈉醫囑。
-    </div>
-</div>
-
-<script>
-    function updateSlider() {
-        const salt = parseFloat(document.getElementById('extraSalt').value).toFixed(1);
-        document.getElementById('saltValue').innerText = salt;
-    }
-
-    function calculate() {
-        // 取得輸入值
-        const calories = parseFloat(document.getElementById('calories').value) || 0;
-        const formulaNa = parseFloat(document.getElementById('formulaNa').value) || 0;
-        const extraSalt = parseFloat(document.getElementById('extraSalt').value) || 0;
-
-        // 計算邏輯
-        const naFromFormula = (calories / 1000) * formulaNa;
-        const naFromSalt = extraSalt * 400; // 1g 鹽 = 400mg 鈉
-        const totalNaMg = naFromFormula + naFromSalt;
-        const totalNaMeq = totalNaMg / 23; // 鈉原子量 23
-
-        // 更新 UI
-        document.getElementById('formulaNaResult').innerText = Math.round(naFromFormula) + " mg";
-        document.getElementById('saltNaResult').innerText = Math.round(naFromSalt) + " mg";
-        document.getElementById('totalNaMg').innerText = Math.round(totalNaMg) + " mg";
-        document.getElementById('totalNaMeq').innerText = totalNaMeq.toFixed(1) + " mEq";
-
-        // 警示邏輯
-        const alertBox = document.getElementById('warningAlert');
-        if (totalNaMg < 1000) {
-            alertBox.style.display = "block";
-        } else {
-            alertBox.style.display = "none";
-        }
-    }
-
-    // 初始化計算
-    calculate();
-</script>
-
+    </main>
 </body>
 </html>

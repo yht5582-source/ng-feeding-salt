@@ -1,0 +1,47 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
+
+const root = join(__dirname, '..');
+
+test('page exposes the required four-part clinical workflow', () => {
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+    const markers = [
+        'id="sodium-form"',
+        'id="patient-section"',
+        'id="intake-section"',
+        'id="output-section"',
+        'id="result-section"',
+        'id="baseline-na"',
+        'id="formula-free-water"',
+        'id="urine-volume"',
+        'id="urine-sodium"',
+        'id="urine-potassium"',
+        'id="predicted-na"',
+        'id="predicted-range"',
+        'id="delta-na"',
+        'id="data-completeness"',
+        'id="prediction-messages"'
+    ];
+
+    for (const marker of markers) {
+        assert.ok(html.includes(marker), `missing ${marker}`);
+    }
+});
+
+test('page loads the shared stylesheet and clinical scripts in order', () => {
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+
+    assert.match(html, /<link rel="stylesheet" href="styles\.css">/);
+    assert.match(html, /<script src="clinical-model\.js" defer><\/script>/);
+    assert.match(html, /<script src="app\.js" defer><\/script>/);
+    assert.ok(html.indexOf('clinical-model.js') < html.indexOf('app.js'));
+});
+
+test('clinical result announces live updates and the page avoids inline event handlers', () => {
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+
+    assert.match(html, /id="result-section"[^>]*aria-live="polite"/);
+    assert.doesNotMatch(html, /\son(?:input|change|click)=/i);
+});
