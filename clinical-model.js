@@ -89,9 +89,10 @@
             ['baselineNa', '請輸入最近血鈉'],
             ['baselineSampleLocal', '請輸入最近血鈉採血時間'],
             ['formulaFreeWaterMl', '請輸入配方自由水量'],
-            ['urineVolumeMl', '請輸入預估 24 小時尿量'],
+            ['urineVolumeMl', '請輸入預估未來 24 小時尿量'],
             ['urineSodium', '請輸入尿鈉濃度'],
-            ['urinePotassium', '請輸入尿鉀濃度']
+            ['urinePotassium', '請輸入尿鉀濃度'],
+            ['urineSampleLocal', '請輸入尿液採樣時間']
         ];
 
         for (const [field, message] of requiredFields) {
@@ -99,7 +100,7 @@
         }
         const positiveFields = [
             ['age', '年齡'], ['heightCm', '身高'], ['weightKg', '目前體重'], ['baselineNa', '最近血鈉'],
-            ['urineVolumeMl', '預估尿量'], ['dryWeightKg', '乾體重'], ['serumPotassium', '血鉀']
+            ['urineVolumeMl', '預估未來 24 小時尿量'], ['dryWeightKg', '乾體重'], ['serumPotassium', '血鉀']
         ];
         const nonnegativeFields = [
             ['formulaFreeWaterMl', '配方自由水量'], ['urineSodium', '尿鈉'], ['urinePotassium', '尿鉀'],
@@ -130,13 +131,16 @@
         if (input.crrt) blockers.push('CRRT 病人不適用此預測模型');
         if (input.anuria) blockers.push('無尿病人不適用此預測模型');
         if (!isMissing(input.urineVolumeMl) && Number(input.urineVolumeMl) <= 0) {
-            blockers.push('預估尿量必須大於 0 mL/24 h');
+            blockers.push('預估未來 24 小時尿量必須大於 0 mL/24 h');
         }
         if (!isMissing(input.sex) && !['male', 'female'].includes(input.sex)) {
             blockers.push('計算用生理性別必須為男性或女性方程');
         }
         if (!isMissing(input.baselineSampleLocal) && !parseLocalDateTime(input.baselineSampleLocal)) {
             blockers.push('最近血鈉採血時間格式不正確');
+        }
+        if (!isMissing(input.urineSampleLocal) && !parseLocalDateTime(input.urineSampleLocal)) {
+            blockers.push('尿液採樣時間格式不正確');
         }
         if (![input.insensibleLossLowMl, input.insensibleLossMl, input.insensibleLossHighMl].some(isMissing)) {
             const low = Number(input.insensibleLossLowMl);
@@ -150,7 +154,7 @@
 
         const commonRanges = [
             ['age', '年齡', 18, 120], ['heightCm', '身高', 100, 230], ['weightKg', '目前體重', 20, 300],
-            ['baselineNa', '最近血鈉', 90, 190], ['urineVolumeMl', '預估尿量', 1, 10000],
+            ['baselineNa', '最近血鈉', 90, 190], ['urineVolumeMl', '預估未來 24 小時尿量', 1, 10000],
             ['urineSodium', '尿鈉', 0, 300], ['urinePotassium', '尿鉀', 0, 300]
         ];
         const unusualLabels = commonRanges
@@ -176,6 +180,9 @@
         const ageHours = sampleAgeHours(input.baselineSampleLocal, input.nowLocal);
         if (ageHours !== null && ageHours > 24) warnings.push('基準血鈉採血時間已超過 24 小時');
         if (ageHours !== null && ageHours < 0) warnings.push('基準血鈉採血時間晚於目前時間');
+        const urineSampleAgeHours = sampleAgeHours(input.urineSampleLocal, input.nowLocal);
+        if (urineSampleAgeHours !== null && urineSampleAgeHours > 24) warnings.push('最近尿液檢體採樣時間已超過 24 小時，可能無法代表未來尿液組成');
+        if (urineSampleAgeHours !== null && urineSampleAgeHours < 0) warnings.push('尿液採樣時間晚於目前時間');
         if (input.aki) warnings.push('AKI 可能使未來尿量與尿電解質快速改變');
         if (input.oliguria) warnings.push('少尿會降低 24 小時預測可靠度');
         if (input.unstableOutput) warnings.push('尿量或輸出不穩定，情境範圍已放寬');
@@ -257,13 +264,13 @@
         const intake = calculateIntake(input);
         const tbw0 = watsonTBW(input);
         const baselineNa = finiteNumber(input.baselineNa, '基準血鈉');
-        const urineVolumeL = finiteNumber(input.urineVolumeMl, '預估尿量') / 1000;
+        const urineVolumeL = finiteNumber(input.urineVolumeMl, '預估未來 24 小時尿量') / 1000;
         const urineNaLoss = urineVolumeL * finiteNumber(input.urineSodium, '尿鈉');
         const urineKLoss = urineVolumeL * finiteNumber(input.urinePotassium, '尿鉀');
         const netCationMeq = intake.sodiumInMeq + intake.potassiumInMeq
             - urineNaLoss - urineKLoss
             - optionalNumber(input.otherNaLossMeq) - optionalNumber(input.otherKLossMeq);
-        const waterOutMl = finiteNumber(input.urineVolumeMl, '預估尿量')
+        const waterOutMl = finiteNumber(input.urineVolumeMl, '預估未來 24 小時尿量')
             + optionalNumber(input.otherOutputMl) + optionalNumber(input.insensibleLossMl);
         const netWaterL = (intake.waterInMl - waterOutMl) / 1000;
         const tbw24 = tbw0 + netWaterL;
@@ -284,7 +291,8 @@
     }
 
     function scenarioRange(input, centralResult) {
-        const uncertainty = input.unstableOutput || input.aki || input.recentDiureticChange ? 0.30 : 0.15;
+        const uncertainty = input.unstableOutput || input.aki || input.recentDiureticChange
+            || input.recentDesmopressinChange ? 0.30 : 0.15;
         const factors = [1 - uncertainty, 1 + uncertainty];
         const centralInsensible = optionalNumber(input.insensibleLossMl);
         const insensibleValues = [
@@ -398,6 +406,7 @@
             blockers: [],
             warnings: validation.warnings,
             assumptions: [
+                '預估未來 24 小時尿量乘以最近尿鈉與尿鉀，作為未來排出量的代理',
                 `尿量、尿鈉與尿鉀以 ±${range.uncertaintyPercent}% 建立敏感度情境`,
                 '情境範圍不是統計信賴區間',
                 '需以實際血鈉追蹤驗證'

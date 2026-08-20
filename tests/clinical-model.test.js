@@ -11,6 +11,7 @@ const completeInput = (patch = {}) => ({
     weightKg: 70,
     baselineNa: 130,
     baselineSampleLocal: '2026-08-19T08:00',
+    urineSampleLocal: '2026-08-19T08:30',
     nowLocal: '2026-08-19T10:00',
     dialysis: false,
     peritonealDialysis: false,
@@ -114,7 +115,8 @@ const blockedCases = [
     ['配方自由水', { formulaFreeWaterMl: null }],
     ['預估尿量', { urineVolumeMl: null }],
     ['尿鈉', { urineSodium: null }],
-    ['尿鉀', { urinePotassium: null }]
+    ['尿鉀', { urinePotassium: null }],
+    ['尿液採樣時間', { urineSampleLocal: null }]
 ];
 
 for (const [label, patch] of blockedCases) {
@@ -177,6 +179,39 @@ test('stale local sampling time lowers completeness and adds a warning', () => {
 
     assert.equal(result.completeness, 'medium');
     assert.ok(result.warnings.some((message) => message.includes('超過 24 小時')));
+});
+
+test('recent urine sodium and potassium require a valid sampling time', () => {
+    const missing = model.predictPlasmaSodium(completeInput({ urineSampleLocal: null }));
+    const malformed = model.predictPlasmaSodium(completeInput({ urineSampleLocal: '2026-02-30T10:00' }));
+
+    assert.equal(missing.predictedNa, null);
+    assert.ok(missing.blockers.some((message) => message.includes('尿液採樣時間')));
+    assert.equal(malformed.predictedNa, null);
+    assert.ok(malformed.blockers.some((message) => message.includes('格式不正確')));
+});
+
+test('stale or future urine sampling time lowers confidence explicitly', () => {
+    const stale = model.predictPlasmaSodium(completeInput({
+        urineSampleLocal: '2026-08-18T08:00',
+        nowLocal: '2026-08-19T10:01'
+    }));
+    const future = model.predictPlasmaSodium(completeInput({
+        urineSampleLocal: '2026-08-19T10:01',
+        nowLocal: '2026-08-19T10:00'
+    }));
+
+    assert.equal(stale.completeness, 'medium');
+    assert.ok(stale.warnings.some((message) => message.includes('尿液檢體') && message.includes('超過 24 小時')));
+    assert.ok(future.warnings.some((message) => message.includes('尿液採樣時間') && message.includes('晚於目前時間')));
+});
+
+test('desmopressin change widens urine sensitivity scenarios', () => {
+    const stable = model.predictPlasmaSodium(completeInput());
+    const changed = model.predictPlasmaSodium(completeInput({ recentDesmopressinChange: true }));
+
+    assert.ok(changed.rangeHigh - changed.rangeLow > stable.rangeHigh - stable.rangeLow);
+    assert.ok(changed.assumptions.some((message) => message.includes('最近尿鈉與尿鉀') && message.includes('代理')));
 });
 
 test('ODS risk factors are reported as a persistent safety flag', () => {

@@ -18,6 +18,7 @@ test('page exposes the required four-part clinical workflow', () => {
         'id="urine-volume"',
         'id="urine-sodium"',
         'id="urine-potassium"',
+        'id="urine-sample-local"',
         'id="predicted-na"',
         'id="predicted-range"',
         'id="delta-na"',
@@ -28,6 +29,10 @@ test('page exposes the required four-part clinical workflow', () => {
     for (const marker of markers) {
         assert.ok(html.includes(marker), `missing ${marker}`);
     }
+    assert.match(html, /預估未來 24 小時尿量/);
+    assert.match(html, /最近一次尿鈉/);
+    assert.match(html, /最近一次尿鉀/);
+    assert.match(html, /代理未來 24 小時的平均尿液組成/);
 });
 
 test('page loads the shared stylesheet and clinical scripts in order', () => {

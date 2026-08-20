@@ -73,17 +73,19 @@
                 </details>
 
                 <details id="output-section" class="form-section" open>
-                    <summary><span class="section-number">3</span><span>未來 24 小時輸出</span></summary>
+                    <summary><span class="section-number">3</span><span>未來 24 小時輸出與最近尿液資料</span></summary>
                     <fieldset>
-                        <legend class="visually-hidden">未來 24 小時輸出</legend>
+                        <legend class="visually-hidden">未來 24 小時輸出與最近尿液資料</legend>
                         <div class="field-grid">
-                            <div class="field emphasized-field"><label for="urine-volume">預估尿量 <span class="required">必填</span></label><div class="input-unit"><input id="urine-volume" type="number" inputmode="decimal" min="1" step="10"><span>mL/24 h</span></div></div>
-                            <div class="field emphasized-field"><label for="urine-sodium">尿鈉 <span class="required">必填</span></label><div class="input-unit"><input id="urine-sodium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
-                            <div class="field emphasized-field"><label for="urine-potassium">尿鉀 <span class="required">必填</span></label><div class="input-unit"><input id="urine-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-volume">預估未來 24 小時尿量 <span class="required">必填</span></label><div class="input-unit"><input id="urine-volume" type="number" inputmode="decimal" min="1" step="10"><span>mL/24 h</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-sodium">最近一次尿鈉 <span class="required">必填</span></label><div class="input-unit"><input id="urine-sodium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-potassium">最近一次尿鉀 <span class="required">必填</span></label><div class="input-unit"><input id="urine-potassium" type="number" inputmode="decimal" min="0" step="0.1"><span>mmol/L</span></div></div>
+                            <div class="field emphasized-field"><label for="urine-sample-local">尿液採樣日期時間 <span class="required">必填</span></label><input id="urine-sample-local" type="datetime-local"></div>
                             <div class="field"><label for="other-output">嘔吐、腹瀉、造口或引流量</label><div class="input-unit"><input id="other-output" type="number" inputmode="decimal" min="0" step="10"><span>mL/day</span></div></div>
                             <div class="field"><label for="other-na-loss">其他鈉流失</label><div class="input-unit"><input id="other-na-loss" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
                             <div class="field"><label for="other-k-loss">其他鉀流失</label><div class="input-unit"><input id="other-k-loss" type="number" inputmode="decimal" min="0" step="0.1"><span>mEq/day</span></div></div>
                         </div>
+                        <small>尿鈉與尿鉀請填最近一次實測值；模型假設這組數值可代理未來 24 小時的平均尿液組成。若近期調整利尿劑、補液或 desmopressin，預估可信度會降低且情境範圍會放寬。</small>
                         <label class="check standalone-check"><input id="other-loss-electrolytes-known" type="checkbox">額外液體流失的鈉、鉀已量化並填入</label>
                         <h3 class="subsection-title">不可見水分流失</h3>
                         <div class="field-grid three-up">
